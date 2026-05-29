@@ -2,68 +2,116 @@
 
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, StructType, StructField, StringType
+import re
 
-@dp.materialized_view(
-    comment="Silver layer: Extract structured account overview information from parsed PDFs"
+# UDF to parse HTML table content
+def parse_html_table(html_content):
+    """
+    Parse HTML table content to extract field-value pairs.
+    Extracts payment details from table rows.
+    """
+    if not html_content or '<table>' not in html_content:
+        return []
+    
+    # Extract table rows
+    rows = re.findall(r'<tr>(.*?)</tr>', html_content, re.DOTALL)
+    
+    field_value_pairs = []
+    for row in rows:
+        # Extract cells from each row
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', row, re.DOTALL)
+        
+        # Clean cell content (remove HTML tags)
+        cells = [re.sub(r'<[^>]+>', '', cell).strip() for cell in cells]
+        
+        # Skip empty rows
+        if len(cells) < 2:
+            continue
+        
+        # First cell is the field name, second cell is the value
+        field = cells[0]
+        value = cells[1] if len(cells) > 1 else ""
+        
+        if field and value:
+            field_value_pairs.append((field, value))
+    
+    return field_value_pairs
+
+# Register UDF
+field_value_schema = ArrayType(StructType([
+    StructField("field", StringType(), True),
+    StructField("value", StringType(), True)
+]))
+parse_html_table_udf = F.udf(parse_html_table, field_value_schema)
+
+@dp.table(
+    comment="Silver layer: Extract payment details from parsed PDF elements"
 )
-def silver_account_overview():
+def silver_payment_details():
     """
-    Extract auto financing statement fields from parsed PDF documents using ai_extract.
-    Designed for Volvo Car Financial Services statements and similar auto loan/lease documents.
+    Extract elements from parsed PDFs, filter for table elements,
+    parse HTML to get field-value pairs, and extract filename.
     """
+    # List of desired payment fields
+    desired_fields = [
+        'Received on',
+        'Received Amount',
+        'Principal',
+        'Finance Charge',
+        'Late Charge',
+        'Other',
+        'Monthly Payment Amount',
+        'Miscellaneous Charge(s)',
+        'Past Due Amount',
+        'Late Charge(s)',
+        'Credit to Monthly Payment Amount',
+        'Total Amount Due',
+        'Due Date'
+    ]
+    
     return (
-        spark.read.table("bronze_parsed_pdfs")
-            # First flatten the parsed content to text for better extraction
-            .withColumn(
-                "document_text",
-                F.expr("""
-                    concat_ws('\\n',
-                        transform(
-                            try_cast(parsed_content:document:elements AS ARRAY<VARIANT>),
-                            element -> try_cast(element:content AS STRING)
-                        )
-                    )
-                """)
-            )
-            .withColumn(
-                "extracted_data",
-                F.expr("""
-                    ai_extract(
-                        document_text,
-                        '{
-                            "account_number": {"type": "string", "description": "Account or contract number, starts with Acct# or Account"},
-                            "vin_number": {"type": "string", "description": "17-character Vehicle Identification Number (VIN)"},
-                            "vehicle_description": {"type": "string", "description": "Complete vehicle description including year, make and model"},
-                            "statement_date": {"type": "string", "description": "Statement date"},
-                            "payment_due_date": {"type": "string", "description": "Due date for payment"},
-                            "amount_due": {"type": "number", "description": "Total Amount Due"},
-                            "monthly_payment": {"type": "number", "description": "Monthly Payment Amount"},
-                            "payoff_amount": {"type": "number", "description": "Payoff Amount if paid early"},
-                            "payments_made": {"type": "integer", "description": "Number of payments already made"},
-                            "payments_remaining": {"type": "integer", "description": "Number of payments remaining"},
-                            "customer_name": {"type": "string", "description": "Full name of the customer"},
-                            "customer_address": {"type": "string", "description": "Complete mailing address of the customer"},
-                            "contact_phone": {"type": "string", "description": "Customer Care or customer service phone number"}
-                        }',
-                        MAP('version', '2.0', 'instructions', 'Extract auto financing information from this Volvo Car Financial Services statement. Look for labeled fields like Acct#, VIN, Due Date, etc.')
-                    )
-                """)
-            )
-            .select(
-                "path",
-                "modificationTime",
-                F.expr("try_cast(extracted_data:account_number AS string)").alias("account_number"),
-                F.expr("try_cast(extracted_data:vin_number AS string)").alias("vin_number"),
-                F.expr("try_cast(extracted_data:vehicle_description AS string)").alias("vehicle_description"),
-                F.expr("try_cast(extracted_data:statement_date AS string)").alias("statement_date"),
-                F.expr("try_cast(extracted_data:payment_due_date AS string)").alias("payment_due_date"),
-                F.expr("try_cast(extracted_data:amount_due AS decimal(15,2))").alias("amount_due"),
-                F.expr("try_cast(extracted_data:monthly_payment AS decimal(15,2))").alias("monthly_payment"),
-                F.expr("try_cast(extracted_data:payoff_amount AS decimal(15,2))").alias("payoff_amount"),
-                F.expr("try_cast(extracted_data:payments_made AS integer)").alias("payments_made"),
-                F.expr("try_cast(extracted_data:payments_remaining AS integer)").alias("payments_remaining"),
-                F.expr("try_cast(extracted_data:customer_name AS string)").alias("customer_name"),
-                F.expr("try_cast(extracted_data:customer_address AS string)").alias("customer_address"),
-                F.expr("try_cast(extracted_data:contact_phone AS string)").alias("contact_phone")
-            )
+        spark.readStream.table("bronze_pdf_raw")
+        # Extract elements array from parsed_content
+        .selectExpr(
+            "path",
+            "explode(try_cast(parsed_content:document:elements AS array<variant>)) as element"
+        )
+        # Extract element fields
+        .selectExpr(
+            "path",
+            "try_cast(element:type AS string) as element_type",
+            "try_cast(element:content AS string) as content"
+        )
+        # Filter only table elements
+        .filter(F.col("element_type") == "table")
+        # Parse HTML table content using UDF
+        .withColumn("field_value_pairs", parse_html_table_udf(F.col("content")))
+        # Explode field-value pairs
+        .select(
+            F.col("path"),
+            F.explode(F.col("field_value_pairs")).alias("pair")
+        )
+        .select(
+            F.col("path"),
+            F.col("pair.field").alias("field"),
+            F.col("pair.value").alias("value")
+        )
+        # Filter only desired fields
+        .filter(F.col("field").isin(desired_fields))
+        # Extract filename from path
+        .withColumn(
+            "filename",
+            F.regexp_extract(F.col("path"), r"([^/]+\.pdf)$", 1)
+        )
+        # Add processing timestamp
+        .withColumn("processed_timestamp", F.current_timestamp())
+        # Select final columns
+        .select(
+            "filename",
+            "field",
+            "value",
+            "processed_timestamp",
+            "path"
+        )
     )
