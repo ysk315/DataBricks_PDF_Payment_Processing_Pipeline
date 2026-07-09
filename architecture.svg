@@ -1,0 +1,96 @@
+<svg viewBox="0 0 1200 480" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+    </marker>
+    <linearGradient id="bronzeGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8b478"/>
+      <stop offset="100%" stop-color="#cd8b4f"/>
+    </linearGradient>
+    <linearGradient id="silverGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d6dbe0"/>
+      <stop offset="100%" stop-color="#aeb7c0"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f5d67e"/>
+      <stop offset="100%" stop-color="#e0b83f"/>
+    </linearGradient>
+    <linearGradient id="goldSumGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0a35c"/>
+      <stop offset="100%" stop-color="#d97f34"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="480" fill="#ffffff"/>
+
+  <text x="600" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2933">PDF Loan Statement Pipeline — Databricks Lakehouse (Medallion Architecture)</text>
+
+  <!-- Source: PDF files -->
+  <g>
+    <rect x="30" y="180" width="140" height="100" rx="10" fill="#f3f4f6" stroke="#9aa5b1" stroke-width="1.5"/>
+    <text x="100" y="215" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2933">41 PDF Loan</text>
+    <text x="100" y="233" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2933">Statements</text>
+    <text x="100" y="255" text-anchor="middle" font-size="11" fill="#5b6472">Uploaded to</text>
+    <text x="100" y="270" text-anchor="middle" font-size="11" fill="#5b6472">Databricks Catalog</text>
+  </g>
+
+  <line x1="170" y1="230" x2="222" y2="230" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Python parsing step -->
+  <g>
+    <rect x="225" y="180" width="140" height="100" rx="10" fill="#eef2ff" stroke="#8b93f8" stroke-width="1.5"/>
+    <text x="295" y="220" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2933">Python</text>
+    <text x="295" y="238" text-anchor="middle" font-size="14" font-weight="600" fill="#1f2933">Parsing</text>
+    <text x="295" y="260" text-anchor="middle" font-size="11" fill="#5b6472">Extract text &amp;</text>
+    <text x="295" y="275" text-anchor="middle" font-size="11" fill="#5b6472">table columns</text>
+  </g>
+
+  <line x1="365" y1="230" x2="417" y2="230" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Bronze -->
+  <g>
+    <rect x="420" y="150" width="170" height="90" rx="10" fill="url(#bronzeGrad)" stroke="#a3672f" stroke-width="1.5"/>
+    <text x="505" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#3a2410">BRONZE</text>
+    <text x="505" y="200" text-anchor="middle" font-size="12" fill="#3a2410">bronze_pdf_raw</text>
+    <text x="505" y="218" text-anchor="middle" font-size="10.5" fill="#4a3018">Raw ingested data</text>
+  </g>
+
+  <line x1="590" y1="195" x2="642" y2="195" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Silver -->
+  <g>
+    <rect x="645" y="150" width="190" height="90" rx="10" fill="url(#silverGrad)" stroke="#7c8894" stroke-width="1.5"/>
+    <text x="740" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#20262c">SILVER</text>
+    <text x="740" y="200" text-anchor="middle" font-size="12" fill="#20262c">silver_payment_details</text>
+    <text x="740" y="218" text-anchor="middle" font-size="10.5" fill="#3a424a">Parsed &amp; structured</text>
+  </g>
+
+  <line x1="835" y1="195" x2="887" y2="195" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Gold -->
+  <g>
+    <rect x="890" y="150" width="190" height="90" rx="10" fill="url(#goldGrad)" stroke="#b8912a" stroke-width="1.5"/>
+    <text x="985" y="180" text-anchor="middle" font-size="13" font-weight="700" fill="#3a2f08">GOLD</text>
+    <text x="985" y="200" text-anchor="middle" font-size="12" fill="#3a2f08">gold_payment_details</text>
+    <text x="985" y="218" text-anchor="middle" font-size="10.5" fill="#4a3c10">Cleaned &amp; formatted</text>
+  </g>
+
+  <line x1="985" y1="240" x2="985" y2="300" stroke="#5b6472" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Gold Summary -->
+  <g>
+    <rect x="890" y="303" width="190" height="90" rx="10" fill="url(#goldSumGrad)" stroke="#a05e1f" stroke-width="1.5"/>
+    <text x="985" y="335" text-anchor="middle" font-size="13" font-weight="700" fill="#3a2410">GOLD (SUMMARY)</text>
+    <text x="985" y="355" text-anchor="middle" font-size="12" fill="#3a2410">gold_payment_summary</text>
+    <text x="985" y="373" text-anchor="middle" font-size="10.5" fill="#4a3018">Aggregated for analysis</text>
+  </g>
+
+  <!-- Spark pipeline label bracket -->
+  <path d="M420,130 L1080,130" stroke="#c1c8d0" stroke-width="1.5" stroke-dasharray="4,4"/>
+  <path d="M420,130 L420,140 M1080,130 L1080,140" stroke="#c1c8d0" stroke-width="1.5"/>
+  <text x="750" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#5b6472">Spark Declarative Pipeline</text>
+
+  <!-- Legend / footer -->
+  <text x="30" y="440" font-size="11" fill="#7b8794">Catalog: workspace.default.*</text>
+  <text x="30" y="458" font-size="11" fill="#7b8794">Flow: PDF ingest → parse → bronze (raw) → silver (parsed) → gold (clean) → gold summary (analysis-ready)</text>
+</svg>
